@@ -1,42 +1,21 @@
-#include <cstdio>
+#include <iostream>
 #include <sstream>
 #include "mos6502.hpp"
 
-const std::string mos6502::INVALID = "Invalid Opcode";
 const std::array<std::string, 4> mos6502::TOKENS = { "abs", "imm", "ind", "zpg" };
 
 mos6502::mos6502(unsigned memory_size)
 {
-    A_ = X_ = Y_ = P_ = SP_ = 0;
+    A_ = X_ = Y_ = SP_ = 0;
     PC_ = 0;
+    cycles_ = 0;
     memory_.resize(memory_size);
-}
-
-uint8_t mos6502::read_flag(flag_type type) const
-{
-    switch (type) {
-    case flag_type::negative:
-        return (P_ >> 7) & 1;
-    case flag_type::overflow:
-        return (P_ >> 6) & 1;
-    case flag_type::brk:
-        return (P_ >> 4) & 1;
-    case flag_type::decimal_mode:
-        return (P_ >> 3) & 1;
-    case flag_type::interrupt_disable:
-        return (P_ >> 2) & 1;
-    case flag_type::zero:
-        return (P_ >> 1) & 1;
-    case flag_type::carry:
-        return P_ & 1;
-    default:
-        throw std::runtime_error("Invalid flag type.");
-    }
+    load_instructions();
 }
 
 std::string mos6502::disassemble(const std::vector<uint8_t> &buffer, unsigned &pc)
 {
-    instruction instr = INSTRUCTIONS[buffer[pc]];
+    instruction instr = instructions[buffer[pc]];
 
     int operand = 0;
     for (int i = instr.size - 1; i > 0; i--)
@@ -59,327 +38,759 @@ std::string mos6502::disassemble(const std::vector<uint8_t> &buffer, unsigned &p
     return syntax;
 }
 
-void mos6502::execute_instruction()
+void mos6502::invalid_opcode() { throw std::runtime_error("Invalid Opcode"); }
+
+void mos6502::BRK()
 {
-    switch (memory_[PC_]) {
-    case 0x00: // BRK
-        break;
-    case 0x01: // ORA ($ind,X)
-        break;
-    case 0x05: // ORA $zpg
-        break;
-    case 0x06: // ASL $zpg
-        break;
-    case 0x08: // PHP
-        break;
-    case 0x09: // ORA #$imm
-        break;
-    case 0x0A: // ASL A
-        break;
-    case 0x0D: // ORA $abs
-        break;
-    case 0x0E: // ASL $abs
-        break;
 
-    case 0x10: // BPL
-        break;
-    case 0x11: // ORA ($ind),Y
-        break;
-    case 0x15: // ORA $zpg,X
-        break;
-    case 0x16: // ASL $zpg,X
-        break;
-    case 0x18: // CLC
-        break;
-    case 0x19: // ORA $abs,Y
-        break;
-    case 0x1D: // ORA $abs,X
-        break;
-    case 0x1E: // ASL $abs,X
-        break;
+}
 
-    case 0x20: // JSR $abs
-        break;
-    case 0x21: // AND ($ind,X)
-        break;
-    case 0x24: // BIT $zpg
-        break;
-    case 0x25: // AND $zpg
-        break;
-    case 0x26: // ROL $zpg
-        break;
-    case 0x28: // PLP
-        break;
-    case 0x29: // AND #$imm
-        break;
-    case 0x2A: // ROL A
-        break;
-    case 0x2C: // BIT $abs
-        break;
-    case 0x2D: // AND $abs
-        break;
-    case 0x2E: // ROL $abs
-        break;
+void mos6502::ORA_indX()
+{
 
-    case 0x30: // BMI
-        break;
-    case 0x31: // AND ($ind),Y
-        break;
-    case 0x35: // AND $zpg,X
-        break;
-    case 0x36: // ROL $zpg,X
-        break;
-    case 0x38: // SEC
-        break;
-    case 0x39: // AND $abs,Y
-        break;
-    case 0x3D: // AND $abs,X
-        break;
-    case 0x3E: // ROL $abs,X
-        break;
+}
 
-    case 0x40: // RTI
-        break;
-    case 0x41: // EOR ($ind,X)
-        break;
-    case 0x45: // EOR $zpg
-        break;
-    case 0x46: // LSR $zpg
-        break;
-    case 0x48: // PHA
-        break;
-    case 0x49: // EOR #$imm
-        break;
-    case 0x4A: // LSR A
-        break;
-    case 0x4C: // JMP $abs
-        break;
-    case 0x4D: // EOR $abs
-        break;
+void mos6502::ORA_zpg()
+{
 
-    case 0x4E: // LSR $abs
-        break;
-    case 0x50: // BVC
-        break;
-    case 0x51: // EOR ($ind),Y
-        break;
-    case 0x55: // EOR $zpg,X
-        break;
-    case 0x56: // LSR $zpg,X
-        break;
-    case 0x58: // CLI
-        break;
-    case 0x59: // EOR $abs,Y
-        break;
-    case 0x5D: // EOR $abs,X
-        break;
-    case 0x5E: // LSR $abs,X
-        break;
+}
 
-    case 0x60: // RTS
-        break;
-    case 0x61: // ADC ($ind,X)
-        break;
-    case 0x65: // ADC $zpg
-        break;
-    case 0x66: // ROR $zpg
-        break;
-    case 0x68: // PLA   
-        break;
-    case 0x69: // ADC #$imm
-        break;
-    case 0x6A: // ROR A
-        break;
-    case 0x6C: // JMP ($ind)
-        break;
-    case 0x6D: // ADC $abs
-        break;
-    case 0x6E: // ROR $abs
-        break;
+void mos6502::ASL_zpg()
+{
 
-    case 0x70: // BVS
-        break;
-    case 0x71: // ADC ($ind),Y
-        break;
-    case 0x75: // ADC $zpg,X
-        break;
-    case 0x76: // ROR $zpg,X
-        break;
-    case 0x78: // SEI
-        break;
-    case 0x79: // ADC $abs,Y
-        break;
-    case 0x7D: // ADC $abs,X
-        break;
-    case 0x7E: // ROR $abs,X
-        break;
+}
 
-    case 0x81: // STA ($ind,X)
-        break;
-    case 0x84: // STY $zpg
-        break;
-    case 0x85: // STA $zpg
-        break;
-    case 0x86: // STX $zpg
-        break;
-    case 0x88: // DEY
-        break;
-    case 0x8A: // TXA
-        break;
-    case 0x8C: // STY $abs
-        break;
-    case 0x8D: // STA $abs
-        break;
-    case 0x8E: // STX $abs
-        break;
+void mos6502::PHP()
+{
 
-    case 0x90: // BCC
-        break;
-    case 0x91: // STA ($ind),Y
-        break;
-    case 0x94: // STY $zpg,X
-        break;
-    case 0x95: // STA $zpg,X
-        break;
-    case 0x96: // STX $zpg,Y
-        break;
-    case 0x98: // TYA
-        break;
-    case 0x99: // STA $abs,Y
-        break;
-    case 0x9A: // TXS
-        break;
-    case 0x9D: // STA $abs,X
-        break;
+}
 
-    case 0xA0: // LDY #$imm
-        break;
-    case 0xA1: // LDA ($ind,X)
-        break;
-    case 0xA2: // LDX #$imm
-        break;
-    case 0xA4: // LDY $zpg
-        break;
-    case 0xA5: // LDA $zpg
-        break;
-    case 0xA6: // LDX $zpg
-        break;
-    case 0xA8: // TAY
-        break;
-    case 0xA9: // LDA #$imm
-        break;
-    case 0xAA: // TAX
-        break;
-    case 0xAC: // LDY $abs
-        break;
-    case 0xAD: // LDA $abs
-        break;
-    case 0xAE: // LDX $abs
-        break;
+void mos6502::ORA_imm()
+{
 
-    case 0xB0: // BCS
-        break;
-    case 0xB1: // LDA ($ind),Y
-        break;
-    case 0xB4: // LDY $zpg,X
-        break;
-    case 0xB5: // LDA $zpg,X
-        break;
-    case 0xB6: // LDX $zpg,Y
-        break;
-    case 0xB8: // CLV
-        break;
-    case 0xB9: // LDA $abs,Y
-        break;
-    case 0xBA: // TSX
-        break;
-    case 0xBC: // LDY $abs,X
-        break;
-    case 0xBD: // LDA $abs,X
-        break;
-    case 0xBE: // LDX $abs,Y
-        break;
+}
 
-    case 0xC0: // CPY #$imm
-        break;
-    case 0xC1: // CMP ($ind,X)
-        break;
-    case 0xC4: // CPY $zpg
-        break;
-    case 0xC5: // CMP $zpg
-        break;
-    case 0xC6: // DEC $zpg
-        break;
-    case 0xC8: // INY
-        break;
-    case 0xC9: // CMP #$imm
-        break;
-    case 0xCA: // DEX
-        break;
-    case 0xCC: // CPY $abs
-        break;
-    case 0xCD: // CMP $abs
-        break;
-    case 0xCE: // DEC $abs
-        break;
+void mos6502::ASL_A()
+{
 
-    case 0xD0: // BNE
-        break;
-    case 0xD1: // CMP ($ind),Y
-        break;
-    case 0xD5: // CMP $zpg,X
-        break;
-    case 0xD6: // DEC $zpg,X
-        break;
-    case 0xD8: // CLD
-        break;
-    case 0xD9: // CMP $abs,Y
-        break;
-    case 0xDD: // CMP $abs,X
-        break;
-    case 0xDE: // DEC $abs,X
-        break;
+}
 
-    case 0xE0: // CPX #$imm
-        break;
-    case 0xE1: // SBC ($ind,X)
-        break;
-    case 0xE4: // CPX $zpg
-        break;
-    case 0xE5: // SBC $zpg
-        break;
-    case 0xE6: // INC $zpg
-        break;
-    case 0xE8: // INX
-        break;
-    case 0xE9: // SBC #$imm
-        break;
-    case 0xEA: // NOP
-        break;
-    case 0xEC: // CPX $abs
-        break;
-    case 0xED: // SBC $abs
-        break;
-    case 0xEE: // INC $abs
-        break;
+void mos6502::ORA_abs()
+{
 
-    case 0xF0: // BEQ
-        break;
-    case 0xF1: // SBC ($ind),Y
-        break;
-    case 0xF5: // SBC $zpg,X
-        break;
-    case 0xF6: // INC $zpg,X
-        break;
-    case 0xF8: // SED
-        break;
-    case 0xF9: // SBC $abs,Y
-        break;
-    case 0xFD: // SBC $abs,X
-        break;
-    case 0xFE: // INC $abs,X
-        break;
-    default:
-        throw std::runtime_error(INVALID);
-    }
+}
+
+void mos6502::ASL_abs()
+{
+
+}
+
+void mos6502::BPL()
+{
+
+}
+
+void mos6502::ORA_indY()
+{
+
+}
+
+void mos6502::ORA_zpgX()
+{
+
+}
+
+void mos6502::ASL_zpgX()
+{
+
+}
+
+void mos6502::CLC()
+{
+
+}
+
+void mos6502::ORA_absY()
+{
+
+}
+
+void mos6502::ORA_absX()
+{
+
+}
+
+void mos6502::ASL_absX()
+{
+
+}
+
+void mos6502::JSR_abs()
+{
+
+}
+
+void mos6502::AND_indX()
+{
+
+}
+
+void mos6502::BIT_zpg()
+{
+
+}
+
+void mos6502::AND_zpg()
+{
+
+}
+
+void mos6502::ROL_zpg()
+{
+
+}
+
+void mos6502::PLP()
+{
+
+}
+
+void mos6502::AND_imm()
+{
+
+}
+
+void mos6502::ROL_A()
+{
+
+}
+
+void mos6502::BIT_abs()
+{
+
+}
+
+void mos6502::AND_abs()
+{
+
+}
+
+void mos6502::ROL_abs()
+{
+
+}
+
+void mos6502::BMI()
+{
+
+}
+
+void mos6502::AND_indY()
+{
+
+}
+
+void mos6502::AND_zpgX()
+{
+
+}
+
+void mos6502::ROL_zpgX()
+{
+
+}
+
+void mos6502::SEC()
+{
+
+}
+
+void mos6502::AND_absY()
+{
+
+}
+
+void mos6502::AND_absX()
+{
+
+}
+
+void mos6502::ROL_absX()
+{
+
+}
+
+void mos6502::RTI()
+{
+
+}
+
+void mos6502::EOR_indX()
+{
+
+}
+
+void mos6502::EOR_zpg()
+{
+
+}
+
+void mos6502::LSR_zpg()
+{
+
+}
+
+void mos6502::PHA()
+{
+
+}
+
+void mos6502::EOR_imm()
+{
+
+}
+
+void mos6502::LSR_A()
+{
+
+}
+
+void mos6502::JMP_abs()
+{
+
+}
+
+void mos6502::EOR_abs()
+{
+
+}
+
+void mos6502::LSR_abs()
+{
+
+}
+
+void mos6502::BVC()
+{
+
+}
+
+void mos6502::EOR_indY()
+{
+
+}
+
+void mos6502::EOR_zpgX()
+{
+
+}
+
+void mos6502::LSR_zpgX()
+{
+
+}
+
+void mos6502::CLI()
+{
+
+}
+
+void mos6502::EOR_absY()
+{
+
+}
+
+void mos6502::EOR_absX()
+{
+
+}
+
+void mos6502::LSR_absX()
+{
+
+}
+
+void mos6502::RTS()
+{
+
+}
+
+void mos6502::ADC_indX()
+{
+
+}
+
+void mos6502::ADC_zpg()
+{
+
+}
+
+void mos6502::ROR_zpg()
+{
+
+}
+
+void mos6502::PLA()
+{
+
+}
+
+void mos6502::ADC_imm()
+{
+
+}
+
+void mos6502::ROR_A()
+{
+
+}
+
+void mos6502::JMP_ind()
+{
+
+}
+
+void mos6502::ADC_abs()
+{
+
+}
+
+void mos6502::ROR_abs()
+{
+
+}
+
+void mos6502::BVS()
+{
+
+}
+
+void mos6502::ADC_indY()
+{
+
+}
+
+void mos6502::ADC_zpgX()
+{
+
+}
+
+void mos6502::ROR_zpgX()
+{
+
+}
+
+void mos6502::SEI()
+{
+
+}
+
+void mos6502::ADC_absY()
+{
+
+}
+
+void mos6502::ADC_absX()
+{
+
+}
+
+void mos6502::ROR_absX()
+{
+
+}
+
+void mos6502::STA_indX()
+{
+
+}
+
+void mos6502::STY_zpg()
+{
+
+}
+
+void mos6502::STA_zpg()
+{
+
+}
+
+void mos6502::STX_zpg()
+{
+
+}
+
+void mos6502::DEY()
+{
+
+}
+
+void mos6502::TXA()
+{
+
+}
+
+void mos6502::STY_abs()
+{
+
+}
+
+void mos6502::STA_abs()
+{
+
+}
+
+void mos6502::STX_abs()
+{
+
+}
+
+void mos6502::BCC()
+{
+
+}
+
+void mos6502::STA_indY()
+{
+
+}
+
+void mos6502::STY_zpgX()
+{
+
+}
+
+void mos6502::STA_zpgX()
+{
+
+}
+
+void mos6502::STX_zpgY()
+{
+
+}
+
+void mos6502::TYA()
+{
+
+}
+
+void mos6502::STA_absY()
+{
+
+}
+
+void mos6502::TXS()
+{
+
+}
+
+void mos6502::STA_absX()
+{
+
+}
+
+void mos6502::LDY_imm()
+{
+
+}
+
+void mos6502::LDA_indX()
+{
+
+}
+
+void mos6502::LDX_imm()
+{
+
+}
+
+void mos6502::LDY_zpg()
+{
+
+}
+
+void mos6502::LDA_zpg()
+{
+
+}
+
+void mos6502::LDX_zpg()
+{
+
+}
+
+void mos6502::TAY()
+{
+
+}
+
+void mos6502::LDA_imm()
+{
+
+}
+
+void mos6502::TAX()
+{
+
+}
+
+void mos6502::LDY_abs()
+{
+
+}
+
+void mos6502::LDA_abs()
+{
+
+}
+
+void mos6502::LDX_abs()
+{
+
+}
+
+void mos6502::BCS()
+{
+
+}
+
+void mos6502::LDA_indY()
+{
+
+}
+
+void mos6502::LDY_zpgX()
+{
+
+}
+
+void mos6502::LDA_zpgX()
+{
+
+}
+
+void mos6502::LDX_zpgY()
+{
+
+}
+
+void mos6502::CLV() 
+{
+
+}
+
+void mos6502::LDA_absY()
+{
+
+}
+
+void mos6502::TSX()
+{
+
+}
+
+void mos6502::LDY_absX()
+{
+
+}
+
+void mos6502::LDA_absX()
+{
+
+}
+
+void mos6502::LDX_absY()
+{
+
+}
+
+void mos6502::CPY_imm()
+{
+
+}
+
+void mos6502::CMP_indX()
+{
+
+}
+
+void mos6502::CPY_zpg()
+{
+
+}
+
+void mos6502::CMP_zpg()
+{
+
+}
+
+void mos6502::DEC_zpg()
+{
+
+}
+
+void mos6502::INY()
+{
+
+}
+
+void mos6502::CMP_imm()
+{
+
+}
+
+void mos6502::DEX()
+{
+
+}
+
+void mos6502::CPY_abs()
+{
+
+}
+
+void mos6502::CMP_abs()
+{
+
+}
+
+void mos6502::DEC_abs()
+{
+
+}
+
+void mos6502::BNE()
+{
+
+}
+
+void mos6502::CMP_indY()
+{
+
+}
+
+void mos6502::CMP_zpgX()
+{
+
+}
+
+void mos6502::DEC_zpgX()
+{
+
+}
+
+void mos6502::CLD()
+{
+
+}
+
+void mos6502::CMP_absY()
+{
+
+}
+
+void mos6502::CMP_absX()
+{
+
+}
+
+void mos6502::DEC_absX()
+{
+
+}
+
+void mos6502::CPX_imm()
+{
+
+}
+
+void mos6502::SBC_indX()
+{
+
+}
+
+void mos6502::CPX_zpg()
+{
+
+}
+
+void mos6502::SBC_zpg()
+{
+
+}
+
+void mos6502::INC_zpg()
+{
+
+}
+
+void mos6502::INX()
+{
+
+}
+
+void mos6502::SBC_imm()
+{
+
+}
+
+void mos6502::NOP()
+{
+
+}
+
+void mos6502::CPX_abs()
+{
+
+}
+
+void mos6502::SBC_abs()
+{
+
+}
+
+void mos6502::INC_abs()
+{
+
+}
+
+void mos6502::BEQ()
+{
+
+}
+
+void mos6502::SBC_indY()
+{
+
+}
+
+void mos6502::SBC_zpgX()
+{
+
+}
+
+void mos6502::INC_zpgX()
+{
+
+}
+
+void mos6502::SED()
+{
+
+}
+
+void mos6502::SBC_absY()
+{
+
+}
+
+void mos6502::SBC_absX()
+{
+
+}
+
+void mos6502::INC_absX()
+{
+
 }
