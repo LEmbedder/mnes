@@ -14,39 +14,61 @@ public:
         NEGATIVE = 0,
         OVER_FLOW = 1,
         BREAK = 3,
-        DECIMAL_MODE = 4,
         INTERRUPT_DISABLE = 5,
         ZERO = 6,
         CARRY = 7
     };
 
-    mos6502(unsigned memory_size);
+    mos6502(unsigned num_pages, const std::vector<uint8_t> &rom_data);
+    std::string disassemble(const std::vector<uint8_t> &buffer, uint16_t &pc);
+    uint8_t memory(uint16_t address) const;
     void print_state(std::ostream &stream = std::cout) const;
     void print_memory(unsigned bytes_per_row = 16, std::ostream &stream = std::cout) const;
-    std::string disassemble(const std::vector<uint8_t> &buffer, unsigned &pc);
 
     uint8_t A() const { return A_; }
     uint8_t X() const { return X_; }
     uint8_t Y() const { return Y_; }
-    uint8_t SP() const { return SP_; }
+    uint16_t S() const { return STACK_BOTTOM & S_; }
     uint16_t PC() const { return PC_; }
     bool P(flag_type type) const { return P_[type]; }
-private:
+// TODO: private:
     struct instruction {
         std::string syntax;
         int size = 0, cycles = 0;
         std::function<void()> impl;
     };
 
-    uint8_t A_, X_, Y_, SP_;
-    uint16_t PC_;
+    static constexpr unsigned PAGE_SIZE = 256;
+    static constexpr uint16_t STACK_TOP = 0x01FF;
+    static constexpr uint16_t STACK_BOTTOM = 0x0100;
+    static const std::array<std::string, 4> TOKENS;
+    uint8_t A_, X_, Y_, S_;
+    uint16_t PC_, irq_vector;
     unsigned cycles_;
     std::bitset<8> P_;
     std::vector<uint8_t> memory_;
     std::vector<instruction> instructions;
-    static const std::array<std::string, 4> TOKENS;
 
-    void load_instructions();
+    void load_memory(uint16_t address, uint8_t value);
+    void step_pc();
+    void step_cycles();
+    bool negative(uint8_t value);
+    bool zero(uint8_t value);
+    void push_stack(uint8_t value);
+    void push_flags();
+    uint8_t pop_stack();
+    void pop_flags();
+    void branch();
+    uint8_t imm();
+    uint8_t rel();
+    uint16_t zpg();
+    uint16_t zpgX();
+    uint16_t zpgY();
+    uint16_t abs();
+    uint16_t absX();
+    uint16_t absY();
+    uint16_t indX();
+    uint16_t indY();
     void invalid_opcode();
     void BRK();
     void ORA_indX();
