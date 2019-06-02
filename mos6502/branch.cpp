@@ -1,73 +1,31 @@
 #include "mos6502.hpp"
 
-void mos6502::BCC()
+void mos6502::branch(bool condition)
 {
     step_cycles();
-    if (!P(CARRY))
-        branch();
-    else
+    if (condition) {
+        ++cycles_;
+        uint16_t pc = PC_ + rel();
+        if ((pc & 0xFF00) != (PC_ & 0xFF00))
+            ++cycles_;
+        PC_ = pc;
+    } else {
         step_pc();
+    }
 }
 
-void mos6502::BCS()
-{
-    step_cycles();
-    if (P(CARRY))
-        branch();
-    else
-        step_pc();
-}
+void mos6502::BCC() { branch(!P(CARRY)); }
 
-void mos6502::BEQ()
-{
-    step_cycles();
-    if (P(ZERO))
-        branch();
-    else
-        step_pc();
-}
+void mos6502::BCS() { branch(P(CARRY)); }
 
-void mos6502::BMI()
-{
-    step_cycles();
-    if (P(NEGATIVE))
-        branch();
-    else
-        step_pc();
-}
+void mos6502::BEQ() { branch(P(ZERO)); }
 
-void mos6502::BNE()
-{
-    step_cycles();
-    if (!P(ZERO))
-        branch();
-    else
-        step_pc();
-}
+void mos6502::BMI() { branch(P(NEGATIVE)); }
 
-void mos6502::BPL()
-{
-    step_cycles();
-    if (!P(NEGATIVE))
-        branch();
-    else
-        step_pc();
-}
+void mos6502::BNE() { branch(!P(ZERO)); }
 
-void mos6502::BVC()
-{
-    step_cycles();
-    if (!P(OVER_FLOW))
-        branch();
-    else
-        step_pc();
-}
+void mos6502::BPL() { branch(!P(NEGATIVE)); }
 
-void mos6502::BVS()
-{
-    step_cycles();
-    if (P(OVER_FLOW))
-        branch();
-    else
-        step_pc();
-}
+void mos6502::BVC() { branch(!P(OVER_FLOW)); }
+
+void mos6502::BVS() { branch(P(OVER_FLOW)); }
